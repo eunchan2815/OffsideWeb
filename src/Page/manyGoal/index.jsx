@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getTopScorers, getAllLeagues, getLeagueInfo } from '../../api/football';
+import { Toast } from '../../components/toast';
 
 export const ManyGoal = () => {
   const [scorers, setScorers] = useState([]);
@@ -7,6 +8,10 @@ export const ManyGoal = () => {
   const [error, setError] = useState(null);
   const [selectedLeague, setSelectedLeague] = useState('BL1');
   const [leagues] = useState(getAllLeagues());
+
+  
+  const [toastShow, setToastShow] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     fetchScorers();
@@ -16,23 +21,27 @@ export const ManyGoal = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // deprecated된 getManyGoalPlayer 대신 getTopScorers 사용하고 selectedLeague 전달
+
       const data = await getTopScorers(selectedLeague);
       console.log('득점왕 데이터:', data); // 디버깅용
-      
+
       if (data && data.scorers) {
-        // 득점 순으로 정렬 (내림차순)
         const sortedScorers = data.scorers.sort((a, b) => b.goals - a.goals);
         setScorers(sortedScorers);
       } else {
         console.error('예상치 못한 데이터 구조:', data);
-        setScorers([]); // 빈 배열로 설정
+        setScorers([]);
       }
     } catch (error) {
       console.error('득점왕 데이터를 불러오는 중 오류 발생:', error);
-      setError('득점왕 데이터를 불러오는데 실패했습니다.');
-      setScorers([]); // 에러 시에도 빈 배열로 설정
+
+      if (error.response?.status === 429) {
+        setToastMsg('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+        setToastShow(true);
+      } else {
+        setError('득점왕 데이터를 불러오는데 실패했습니다.');
+      }
+      setScorers([]);
     } finally {
       setLoading(false);
     }
@@ -74,8 +83,7 @@ export const ManyGoal = () => {
               <p className="text-sm text-gray-600">{currentLeague.country}</p>
             </div>
           </div>
-          
-          {/* 리그 선택 드롭다운 */}
+
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">리그 선택:</label>
             <select
@@ -106,7 +114,7 @@ export const ManyGoal = () => {
 
   return (
     <div className="max-w-5xl mx-auto mt-8">
-      {/* 헤더 및 리그 선택 */}
+    
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <img
@@ -119,8 +127,7 @@ export const ManyGoal = () => {
             <p className="text-sm text-gray-600">{currentLeague.country}</p>
           </div>
         </div>
-        
-        {/* 리그 선택 드롭다운 */}
+
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-gray-700">리그 선택:</label>
           <select
@@ -141,8 +148,18 @@ export const ManyGoal = () => {
         <div className="bg-white rounded-lg shadow p-8">
           <div className="text-center py-8 text-gray-500">
             <div className="mb-4">
-              <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="mx-auto h-12 w-12 text-gray-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
             <p className="text-lg font-medium text-gray-900 mb-2">데이터가 없습니다</p>
@@ -168,10 +185,8 @@ export const ManyGoal = () => {
                 </thead>
                 <tbody>
                   {scorers.map((scorer, index) => {
-                    // 동일한 득점자들에 대한 순위 처리
                     let rank = index + 1;
                     if (index > 0 && scorers[index - 1].goals === scorer.goals) {
-                      // 이전 선수와 득점이 같으면 같은 순위
                       let prevIndex = index - 1;
                       while (prevIndex >= 0 && scorers[prevIndex].goals === scorer.goals) {
                         prevIndex--;
@@ -180,14 +195,22 @@ export const ManyGoal = () => {
                     }
 
                     return (
-                      <tr key={scorer.player.id} className="border-b hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={scorer.player.id}
+                        className="border-b hover:bg-gray-50 transition-colors"
+                      >
                         <td className="py-3 px-4 text-center font-medium">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                            rank === 1 ? 'bg-yellow-100 text-yellow-800' :
-                            rank === 2 ? 'bg-gray-100 text-gray-800' :
-                            rank === 3 ? 'bg-orange-100 text-orange-800' :
-                            'bg-blue-50 text-blue-800'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                              rank === 1
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : rank === 2
+                                ? 'bg-gray-100 text-gray-800'
+                                : rank === 3
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-blue-50 text-blue-800'
+                            }`}
+                          >
                             {rank}
                           </span>
                         </td>
@@ -199,7 +222,9 @@ export const ManyGoal = () => {
                               </span>
                             </div>
                             <div className="min-w-0">
-                              <div className="font-medium text-gray-900 truncate">{scorer.player.name}</div>
+                              <div className="font-medium text-gray-900 truncate">
+                                {scorer.player.name}
+                              </div>
                               <div className="text-xs text-gray-500 truncate">
                                 {scorer.player.position || scorer.player.section || '-'}
                               </div>
@@ -208,9 +233,9 @@ export const ManyGoal = () => {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <img 
-                              src={scorer.team.crest} 
-                              alt={scorer.team.name} 
+                            <img
+                              src={scorer.team.crest}
+                              alt={scorer.team.name}
                               className="w-6 h-6 flex-shrink-0"
                               onError={(e) => {
                                 e.target.style.display = 'none';
@@ -235,13 +260,20 @@ export const ManyGoal = () => {
               </table>
             </div>
           </div>
-          
-          {/* 하단 정보 */}
+
           <div className="mt-4 text-sm text-gray-500 text-center">
             총 {scorers.length}명의 선수 • 득점 순으로 정렬
           </div>
         </>
       )}
+
+      
+      <Toast
+        message={toastMsg}
+        show={toastShow}
+        onClose={() => setToastShow(false)}
+        duration={4000}
+      />
     </div>
   );
 };

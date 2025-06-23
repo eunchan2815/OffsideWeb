@@ -53,6 +53,17 @@ export const getStandings = async (leagueCode = 'BL1') => {
   }
 };
 
+// 팀 상세 정보 조회
+export const getTeamInfo = async (teamId) => {
+  try {
+    const res = await API.get(`/teams/${teamId}`);
+    return res.data;
+  } catch (error) {
+    console.error(`팀(${teamId}) 정보 API 호출 오류:`, error);
+    throw error;
+  }
+};
+
 // 득점왕 조회 (다중 리그 지원)
 export const getTopScorers = async (leagueCode = 'BL1') => {
   try {
